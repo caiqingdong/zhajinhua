@@ -23,18 +23,6 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-/**
- * copy an array's item to a new array (its performance is better than Array.slice)
- * @param {Array} arr
- * @returns {Array}
- */
-cc.copyArray = function(arr){
-    var i, len = arr.length, arr_clone = new Array(len);
-    for (i = 0; i < len; i += 1)
-        arr_clone[i] = arr[i];
-    return arr_clone;
-};
-
 cc._EventListenerVector = cc.Class.extend({
     _fixedListeners: null,
     _sceneGraphListeners: null,
@@ -101,12 +89,14 @@ cc.__getListenerID = function (event) {
 };
 
 /**
- * @namespace<p>
- *  This class manages event listener subscriptions and event dispatching.                                      <br/>
+ * <p>
+ *  cc.eventManager is a singleton object which manages event listener subscriptions and event dispatching. <br/>
  *                                                                                                              <br/>
- *  The EventListener list is managed in such a way that event listeners can be added and removed even          <br/>
- *  from within an EventListener, while events are being dispatched.
+ *  The EventListener list is managed in such way so that event listeners can be added and removed          <br/>
+ *  while events are being dispatched.
  * </p>
+ * @class
+ * @name cc.eventManager
  */
 cc.eventManager = /** @lends cc.eventManager# */{
     //Priority dirty flag
@@ -317,6 +307,8 @@ cc.eventManager = /** @lends cc.eventManager# */{
 
     _sortEventListenersOfSceneGraphPriorityDes : function(l1, l2){
         var locNodePriorityMap = cc.eventManager._nodePriorityMap;
+        if(!l1 || !l2 || !l1._getSceneGraphPriority() || !l2._getSceneGraphPriority())
+            return -1;
         return locNodePriorityMap[l2._getSceneGraphPriority().__instanceId] - locNodePriorityMap[l1._getSceneGraphPriority().__instanceId];
     },
 
@@ -653,18 +645,15 @@ cc.eventManager = /** @lends cc.eventManager# */{
      *         except calls removeAllListeners().
      */
     addListener: function (listener, nodeOrPriority) {
-
         cc.assert(listener && nodeOrPriority, cc._LogInfos.eventManager_addListener_2);
-
         if(!(listener instanceof cc.EventListener)){
-
             cc.assert(typeof nodeOrPriority !== "number", cc._LogInfos.eventManager_addListener_3);
-
             listener = cc.EventListener.create(listener);
-        } else{
-
-            cc.assert(!listener._isRegistered(), cc._LogInfos.eventManager_addListener_4);
-
+        } else {
+            if(listener._isRegistered()){
+                cc.log(cc._LogInfos.eventManager_addListener_4);
+                return;
+            }
         }
 
         if (!listener.checkAvailable())
@@ -778,14 +767,13 @@ cc.eventManager = /** @lends cc.eventManager# */{
             // Don't want any dangling pointers or the possibility of dealing with deleted objects..
             delete _t._nodePriorityMap[listenerType.__instanceId];
             cc.arrayRemoveObject(_t._dirtyNodes, listenerType);
-            var listeners = _t._nodeListenersMap[listenerType.__instanceId];
-            if (!listeners)
-                return;
-
-            var listenersCopy = cc.copyArray(listeners), i;
-            for (i = 0; i < listenersCopy.length; i++)
-                _t.removeListener(listenersCopy[i]);
-            listenersCopy.length = 0;
+            var listeners = _t._nodeListenersMap[listenerType.__instanceId], i;
+            if (listeners) {
+                var listenersCopy = cc.copyArray(listeners);
+                for (i = 0; i < listenersCopy.length; i++)
+                    _t.removeListener(listenersCopy[i]);
+                listenersCopy.length = 0;
+            }
 
             // Bug fix: ensure there are no references to the node in the list of listeners to be added.
             // If we find any listeners associated with the destroyed node in this list then remove them.

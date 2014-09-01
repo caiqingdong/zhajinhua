@@ -34,14 +34,49 @@ ccs.objectFactory = {
         var o = null;
         var t = this._typeMap[className];
         if (t) {
-            o = new t._fun();
+            if(typeof t._fun == "function"){
+                o = new t._fun();
+            }else{
+                o = t._fun;
+            }
         }
         return o;
     },
 
     registerType: function (t) {
         this._typeMap[t._className] = t;
+    },
+
+    createGUI: function(name){
+        var object = null;
+        if(name === "Panel"){
+            name = "Layout";
+        }else if(name === "TextArea"){
+            name = "Label";
+        }else if(name === "TextButton"){
+            name = "Button";
+        }
+
+        var t = this._typeMap[name];
+        if(t && t._fun){
+            object = t._fun;
+        }
+
+        return object;
+    },
+
+    createWidgetReaderProtocol: function(name){
+        var object = null;
+
+        var t = this._typeMap[name];
+        if(t && t._fun){
+            object = t._fun;
+        }
+
+        return object;
     }
+
+
 };
 
 ccs.TInfo = ccs.Class.extend({

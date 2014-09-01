@@ -24,7 +24,9 @@
  ****************************************************************************/
 
 /**
- * @namespace Base singleton object for ccs.sceneReader
+ * ccs.sceneReader is the reader for Cocos Studio scene editor.
+ * @class
+ * @name ccs.sceneReader
  */
 ccs.sceneReader = /** @lends ccs.sceneReader# */{
     _baseBath:"",
@@ -38,13 +40,15 @@ ccs.sceneReader = /** @lends ccs.sceneReader# */{
      * @returns {cc.Node}
      */
     createNodeWithSceneFile: function (pszFileName) {
-        this._baseBath = cc.path.dirname(pszFileName);
-        var jsonDict = cc.loader.getRes(pszFileName);
+        this._node  = null;
+        do{
+            this._baseBath = cc.path.dirname(pszFileName);
+            var jsonDict = cc.loader.getRes(pszFileName);
+            if (!jsonDict) throw "Please load the resource first : " + pszFileName;
+            this._node = this.createObject(jsonDict, null);
+            ccs.triggerManager.parse(jsonDict["Triggers"]||[]);
+        }while(0);
 
-        if (!jsonDict) throw "Please load the resource first : " + pszFileName;
-
-        this._node = this.createObject(jsonDict, null);
-        ccs.triggerManager.parse(jsonDict["Triggers"]||[]);
         return this._node;
     },
 

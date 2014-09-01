@@ -24,6 +24,14 @@
  THE SOFTWARE.
  ****************************************************************************/
 
+cc._tmp.LayerDefineForWebGL = function(){
+    var _p = cc.Layer.prototype;
+    //Layer doesn't support bake function in WebGL
+    _p.bake = function(){};
+    _p.unbake = function(){};
+    _p.visit = cc.Node.prototype.visit;
+};
+
 cc._tmp.WebGLLayerColor = function () {
     //cc.LayerColor define start
     var _p = cc.LayerColor.prototype;
@@ -51,7 +59,7 @@ cc._tmp.WebGLLayerColor = function () {
         _t._verticesFloat32Buffer = cc._renderContext.createBuffer();
         _t._colorsUint8Buffer = cc._renderContext.createBuffer();
 
-        cc.LayerRGBA.prototype.ctor.call(_t);
+        cc.Layer.prototype.ctor.call(_t);
         _t._blendFunc = new cc.BlendFunc(cc.BLEND_SRC, cc.BLEND_DST);
 
         cc.LayerColor.prototype.init.call(_t, color, width, height);

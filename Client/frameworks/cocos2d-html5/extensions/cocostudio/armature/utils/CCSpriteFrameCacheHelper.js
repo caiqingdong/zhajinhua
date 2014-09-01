@@ -24,10 +24,11 @@
  ****************************************************************************/
 
 /**
- * @namespace <p>
- *     The sprite frame cache helper
+ * ccs.spriteFrameCacheHelper is a singleton object, it's a sprite frame cache helper
+ * @class
+ * @name ccs.spriteFrameCacheHelper
  */
-ccs.spriteFrameCacheHelper = /** @lends cc.spriteFrameCacheHelper# */ {
+ccs.spriteFrameCacheHelper = /** @lends ccs.spriteFrameCacheHelper# */ {
     _textureAtlasDic:{},
     _imagePaths:[],
 

@@ -28,7 +28,6 @@
 #include "jsb_cocos2dx_auto.hpp"
 #include "jsb_event_dispatcher_manual.h"
 
-
 using namespace cocos2d;
 
 schedFunc_proxy_t *_schedFunc_target_ht = NULL;
@@ -199,6 +198,81 @@ void JSTouchDelegate::onTouchesCancelled(const std::vector<Touch*>& touches, Eve
 {
     CC_UNUSED_PARAM(event);
     ScriptingCore::getInstance()->executeCustomTouchesEvent(EventTouch::EventCode::CANCELLED, touches, _obj);
+}
+
+// cc.EventTouch#getTouches
+bool js_cocos2dx_EventTouch_getTouches(JSContext *cx, uint32_t argc, jsval *vp) {
+    JSObject *obj = JS_THIS_OBJECT(cx, vp);
+	js_proxy_t *proxy = jsb_get_js_proxy(obj);
+	cocos2d::EventTouch* cobj = (cocos2d::EventTouch *)(proxy ? proxy->ptr : NULL);
+	JSB_PRECONDITION2( cobj, cx, false, "js_cocos2dx_EventTouch_getTouches : Invalid Native Object");
+	if (argc == 0) {
+		const std::vector<cocos2d::Touch*>& ret = cobj->getTouches();
+        JSObject *jsretArr = JS_NewArrayObject(cx, 0, NULL);
+        
+        int i = 0;
+        for (cocos2d::Touch* touchObj : ret)
+        {
+            JS::RootedValue arrElement(cx);
+            
+            //First, check whether object is associated with js object.
+            js_proxy_t* jsproxy = js_get_or_create_proxy<cocos2d::Touch>(cx, touchObj);
+            if (jsproxy) {
+                arrElement = OBJECT_TO_JSVAL(jsproxy->obj);
+            }
+            if (!JS_SetElement(cx, jsretArr, i, &arrElement)) {
+                break;
+            }
+            ++i;
+        }
+        
+		JS_SET_RVAL(cx, vp, OBJECT_TO_JSVAL(jsretArr));
+		return true;
+	}
+    
+	JS_ReportError(cx, "js_cocos2dx_EventTouch_getTouches : wrong number of arguments: %d, was expecting %d", argc, 0);
+	return false;
+}
+
+// cc.EventTouch#setTouches
+bool js_cocos2dx_EventTouch_setTouches(JSContext *cx, uint32_t argc, jsval *vp)
+{
+	jsval *argv = JS_ARGV(cx, vp);
+	bool ok = true;
+	JSObject *obj = JS_THIS_OBJECT(cx, vp);
+	js_proxy_t *proxy = jsb_get_js_proxy(obj);
+	cocos2d::EventTouch* cobj = (cocos2d::EventTouch *)(proxy ? proxy->ptr : NULL);
+	JSB_PRECONDITION2( cobj, cx, false, "js_cocos2dx_EventTouch_setTouches : Invalid Native Object");
+	if (argc == 1) {
+		std::vector<Touch*> arg0;
+        JS::RootedObject jsobj(cx);
+        ok = argv->isObject() && JS_ValueToObject( cx, JS::RootedValue(cx, *argv), &jsobj );
+        JSB_PRECONDITION3( ok, cx, false, "Error converting value to object");
+        JSB_PRECONDITION3( jsobj && JS_IsArrayObject( cx, jsobj),  cx, false, "Object must be an array");
+        
+        uint32_t len = 0;
+        JS_GetArrayLength(cx, jsobj, &len);
+        
+        for (uint32_t i=0; i < len; i++)
+        {
+            JS::RootedValue value(cx);
+            if (JS_GetElement(cx, jsobj, i, &value))
+            {
+                JSObject *tmp = JSVAL_TO_OBJECT(value);
+                proxy = jsb_get_js_proxy(tmp);
+                cocos2d::Touch* touchObj = (cocos2d::Touch *)(proxy ? proxy->ptr : NULL);
+                if (touchObj) {
+                    arg0.push_back(touchObj);
+                }
+            }
+        }
+		cobj->setTouches(arg0);
+		JS_SET_RVAL(cx, vp, JSVAL_VOID);
+		return true;
+	}
+    
+	JS_ReportError(cx, "js_cocos2dx_EventTouch_setTouches : wrong number of arguments: %d, was expecting %d", argc, 1);
+	return false;
 }
 
 static void addCallBackAndThis(JSObject *obj, jsval callback, jsval &thisObj)
@@ -447,59 +521,6 @@ bool js_cocos2dx_CCMenuItemSprite_create(JSContext *cx, uint32_t argc, jsval *vp
 		}
 
 		JSObject *obj = bind_menu_item<cocos2d::MenuItemSprite>(cx, ret, jsCallback, jsThis);
-
-		JS_SET_RVAL(cx, vp, OBJECT_TO_JSVAL(obj));
-		return true;
-	}
-    JS_ReportError(cx, "Invalid number of arguments. Expecting: 2 <= args <= 5");
-	return false;
-}
-
-// "create" in JS
-// cc.MenuItemImage.create( normalImage, selectedImage, [disabledImage], callback_fn, [this] 
-bool js_cocos2dx_CCMenuItemImage_create(JSContext *cx, uint32_t argc, jsval *vp)
-{
-	if (argc >= 2 && argc <= 5) {
-		jsval *argv = JS_ARGV(cx, vp);
-		JSStringWrapper arg0(argv[0]);
-		JSStringWrapper arg1(argv[1]);
-		JSStringWrapper arg2;
-
-		bool thirdArgIsString = true;
-
-		jsval jsCallback = JSVAL_VOID;
-		jsval jsThis = JSVAL_VOID;
-
-		int last = 2;
-		if (argc >= 3) {
-			thirdArgIsString = argv[2].isString();
-			if (thirdArgIsString) {
-				arg2.set(argv[2], cx);
-				last = 3;
-			}
-		}
-		cocos2d::MenuItemImage* ret = cocos2d::MenuItemImage::create(arg0.get(), arg1.get(), std::string(arg2.get()));
-
-		if (argc >= 3) { 
-			if (!thirdArgIsString) {
-				//cc.MenuItemImage.create( normalImage, selectedImage, callback_fn, [this] )
-				jsCallback = argv[last++];
-				if (argc == 4) {
-					jsThis = argv[last];
-				}
-			}
-			else { 
-				//cc.MenuItemImage.create( normalImage, selectedImage, disabledImage, callback_fn, [this] )
-				if (argc >= 4) {
-					jsCallback = argv[last++];
-					if (argc == 5) {
-						jsThis = argv[last];
-					}
-				}
-			}
-		}
-
-        JSObject *obj = bind_menu_item<cocos2d::MenuItemImage>(cx, ret, jsCallback, jsThis);
 
 		JS_SET_RVAL(cx, vp, OBJECT_TO_JSVAL(obj));
 		return true;
@@ -820,14 +841,6 @@ jsval anonEvaluate(JSContext *cx, JSObject *thisObj, const char* string) {
 		return out;
 	}
 	return JSVAL_VOID;
-}
-
-bool js_platform(JSContext *cx, uint32_t argc, jsval *vp)
-{
-	JSString *str = JS_NewStringCopyZ(cx, "mobile");
-	jsval out = STRING_TO_JSVAL(str);
-	JS_SET_RVAL(cx, vp, out);
-	return true;
 }
 
 JSCallbackWrapper::JSCallbackWrapper()
@@ -1601,11 +1614,11 @@ bool js_CCNode_schedule(JSContext *cx, uint32_t argc, jsval *vp)
         
         if(argc == 1) {
             sched->schedule(schedule_selector(JSScheduleWrapper::scheduleFunc), tmpCobj, 0, !node->isRunning());
-        } if(argc == 2) {
+        }else if(argc == 2) {
             sched->schedule(schedule_selector(JSScheduleWrapper::scheduleFunc), tmpCobj, interval, !node->isRunning());
-        } if(argc == 3) {
+        }else if(argc == 3) {
             sched->schedule(schedule_selector(JSScheduleWrapper::scheduleFunc), tmpCobj, interval, (unsigned int)repeat, 0, !node->isRunning());
-        } if (argc == 4) {
+        }else if (argc == 4) {
             sched->schedule(schedule_selector(JSScheduleWrapper::scheduleFunc), tmpCobj, interval, (unsigned int)repeat, delay, !node->isRunning());
         }
 		
@@ -2480,6 +2493,7 @@ bool js_cocos2dx_CCTMXLayer_getTiles(JSContext *cx, uint32_t argc, jsval *vp)
 
 
 // Actions
+
 bool js_cocos2dx_ActionInterval_repeat(JSContext *cx, uint32_t argc, jsval *vp)
 {
 	JSObject *obj = JS_THIS_OBJECT(cx, vp);
@@ -2553,8 +2567,9 @@ bool js_cocos2dx_ActionInterval_speed(JSContext *cx, uint32_t argc, jsval *vp)
         if( ! JS::ToNumber(cx, argv[0], &speed) ) {
             return false;
         }
-        if (speed <= 0) {
-            JS_ReportError(cx, "js_cocos2dx_ActionInterval_repeat : Speed must be greater than 0");
+        if (speed < 0) {
+            JS_ReportError(cx, "js_cocos2dx_ActionInterval_speed : Speed must not be negative");
+            return false;
         }
         
         cocos2d::Speed* action = cocos2d::Speed::create(cobj, speed);
@@ -2591,7 +2606,24 @@ enum ACTION_TAG {
     EASE_BOUNCE_INOUT,
     EASE_BACK_IN,
     EASE_BACK_OUT,
-    EASE_BACK_INOUT
+    EASE_BACK_INOUT,
+    
+    EASE_BEZIER_ACTION,
+    EASE_QUADRATIC_IN,
+    EASE_QUADRATIC_OUT,
+    EASE_QUADRATIC_INOUT,
+    EASE_QUARTIC_IN,
+    EASE_QUARTIC_OUT,
+    EASE_QUARTIC_INOUT,
+    EASE_QUINTIC_IN,
+    EASE_QUINTIC_OUT,
+    EASE_QUINTIC_INOUT,
+    EASE_CIRCLE_IN,
+    EASE_CIRCLE_OUT,
+    EASE_CIRCLE_INOUT,
+    EASE_CUBIC_IN,
+    EASE_CUBIC_OUT,
+    EASE_CUBIC_INOUT
 };
 
 bool js_cocos2dx_ActionInterval_easing(JSContext *cx, uint32_t argc, jsval *vp)
@@ -2616,7 +2648,7 @@ bool js_cocos2dx_ActionInterval_easing(JSContext *cx, uint32_t argc, jsval *vp)
             JS_ValueToObject(cx, JS::RootedValue(cx, vpi), &tmp) &&
             JS_GetProperty(cx, tmp, "tag", &jsTag) &&
             JS::ToNumber(cx, jsTag, &tag);
-        JS_GetProperty(cx, tmp, "parameter", &jsParam) && JS::ToNumber(cx, jsParam, &parameter);
+        JS_GetProperty(cx, tmp, "param", &jsParam) && JS::ToNumber(cx, jsParam, &parameter);
         bool hasParam = (parameter == parameter);
         if (!ok) continue;
 
@@ -2676,6 +2708,54 @@ bool js_cocos2dx_ActionInterval_easing(JSContext *cx, uint32_t argc, jsval *vp)
             action = cocos2d::EaseBackOut::create(currentAction);
         else if (tag == EASE_BACK_INOUT)
             action = cocos2d::EaseBackInOut::create(currentAction);
+        
+        else if (tag == EASE_QUADRATIC_IN)
+            action = cocos2d::EaseQuadraticActionIn::create(currentAction);
+        else if (tag == EASE_QUADRATIC_OUT)
+            action = cocos2d::EaseQuadraticActionOut::create(currentAction);
+        else if (tag == EASE_QUADRATIC_INOUT)
+            action = cocos2d::EaseQuadraticActionInOut::create(currentAction);
+        else if (tag == EASE_QUARTIC_IN)
+            action = cocos2d::EaseQuarticActionIn::create(currentAction);
+        else if (tag == EASE_QUARTIC_OUT)
+            action = cocos2d::EaseQuarticActionOut::create(currentAction);
+        else if (tag == EASE_QUARTIC_INOUT)
+            action = cocos2d::EaseQuarticActionInOut::create(currentAction);
+        else if (tag == EASE_QUINTIC_IN)
+            action = cocos2d::EaseQuinticActionIn::create(currentAction);
+        else if (tag == EASE_QUINTIC_OUT)
+            action = cocos2d::EaseQuinticActionOut::create(currentAction);
+        else if (tag == EASE_QUINTIC_INOUT)
+            action = cocos2d::EaseQuinticActionInOut::create(currentAction);
+        else if (tag == EASE_CIRCLE_IN)
+            action = cocos2d::EaseCircleActionIn::create(currentAction);
+        else if (tag == EASE_CIRCLE_OUT)
+            action = cocos2d::EaseCircleActionOut::create(currentAction);
+        else if (tag == EASE_CIRCLE_INOUT)
+            action = cocos2d::EaseCircleActionInOut::create(currentAction);
+        else if (tag == EASE_CUBIC_IN)
+            action = cocos2d::EaseCubicActionIn::create(currentAction);
+        else if (tag == EASE_CUBIC_OUT)
+            action = cocos2d::EaseCubicActionOut::create(currentAction);
+        else if (tag == EASE_CUBIC_INOUT)
+            action = cocos2d::EaseCubicActionInOut::create(currentAction);
+        else if (tag == EASE_BEZIER_ACTION)
+        {
+            JS::RootedValue jsParam2(cx);
+            JS::RootedValue jsParam3(cx);
+            JS::RootedValue jsParam4(cx);
+            double parameter2, parameter3, parameter4;
+            ok &= JS_GetProperty(cx, tmp, "param2", &jsParam2);
+            ok &= JS::ToNumber(cx, jsParam2, &parameter2);
+            ok &= JS_GetProperty(cx, tmp, "param3", &jsParam3);
+            ok &= JS::ToNumber(cx, jsParam3, &parameter3);
+            ok &= JS_GetProperty(cx, tmp, "param4", &jsParam4);
+            ok &= JS::ToNumber(cx, jsParam4, &parameter4);
+            if (!ok) continue;
+            
+            action = cocos2d::EaseBezierAction::create(currentAction);
+            ((EaseBezierAction *)action)->setBezierParamer(parameter, parameter2, parameter3, parameter4);
+        }
         else
             continue;
         
@@ -2719,7 +2799,7 @@ bool js_BezierActions_create(JSContext *cx, uint32_t argc, jsval *vp) {
         
         T* ret =  T::create(t, config);
         
-        free(arr);
+        delete [] arr;
 
         jsval jsret;
 		do {
@@ -2742,6 +2822,41 @@ bool js_BezierActions_create(JSContext *cx, uint32_t argc, jsval *vp) {
     }
     JS_ReportError(cx, "wrong number of arguments: %d, was expecting %d", argc, 1);
 	return false;
+}
+
+template<class T>
+bool js_BezierActions_initWithDuration(JSContext *cx, uint32_t argc, jsval *vp)
+{
+    jsval *argv = JS_ARGV(cx, vp);
+    bool ok = true;
+    JSObject *obj = JS_THIS_OBJECT(cx, vp);
+    js_proxy_t *proxy = jsb_get_js_proxy(obj);
+    T* cobj = (T *)(proxy ? proxy->ptr : NULL);
+    JSB_PRECONDITION2( cobj, cx, false, "js_cocos2dx_Bezier_initWithDuration : Invalid Native Object");
+    if (argc == 2) {
+        double arg0;
+        cocos2d::_ccBezierConfig arg1;
+        ok &= JS::ToNumber( cx, JS::RootedValue(cx, argv[0]), &arg0);
+
+        int num;
+        cocos2d::Vec2 *arr;
+        jsval_to_ccarray_of_CCPoint(cx, argv[1], &arr, &num);
+
+        arg1.controlPoint_1 = arr[0];
+        arg1.controlPoint_2 = arr[1];
+        arg1.endPosition = arr[2];
+
+        JSB_PRECONDITION2(ok, cx, false, "js_cocos2dx_Bezier_initWithDuration : Error processing arguments");
+        bool ret = cobj->initWithDuration(arg0, arg1);
+        delete [] arr;
+        jsval jsret = JSVAL_NULL;
+        jsret = BOOLEAN_TO_JSVAL(ret);
+        JS_SET_RVAL(cx, vp, jsret);
+        return true;
+    }
+
+    JS_ReportError(cx, "js_cocos2dx_BezierTo_initWithDuration : wrong number of arguments: %d, was expecting %d", argc, 2);
+    return false;
 }
 
 template<class T>
@@ -2770,7 +2885,7 @@ bool js_CardinalSplineActions_create(JSContext *cx, uint32_t argc, jsval *vp) {
         
         T *ret = T::create(dur, points, ten);
         
-        free(arr);
+        delete [] arr;
         
         jsval jsret;
 		do {
@@ -2818,7 +2933,7 @@ bool js_CatmullRomActions_create(JSContext *cx, uint32_t argc, jsval *vp) {
         
         T *ret = T::create(dur, points);
         
-        free(arr);
+        delete [] arr;
         
         jsval jsret;
 		do {
@@ -2843,6 +2958,41 @@ bool js_CatmullRomActions_create(JSContext *cx, uint32_t argc, jsval *vp) {
 	return false;
 }
 
+template<class T>
+bool js_CatmullRomActions_initWithDuration(JSContext *cx, uint32_t argc, jsval *vp) {
+	jsval *argv = JS_ARGV(cx, vp);
+	bool ok = true;
+	JSObject *obj = JS_THIS_OBJECT(cx, vp);
+	js_proxy_t *proxy = jsb_get_js_proxy(obj);
+	T* cobj = (T *)(proxy ? proxy->ptr : NULL);
+	JSB_PRECONDITION2( cobj, cx, false, "js_cocos2dx_CatmullRom_initWithDuration : Invalid Native Object");
+	if (argc == 2) {
+		double arg0;
+		ok &= JS::ToNumber( cx, JS::RootedValue(cx, argv[0]), &arg0);
+
+		int num;
+        Point *arr;
+        ok &= jsval_to_ccarray_of_CCPoint(cx, argv[1], &arr, &num);
+                
+        cocos2d::PointArray* arg1 = cocos2d::PointArray::create(num);        
+        for( int i=0; i < num;i++) {
+            arg1->addControlPoint(arr[i]);
+        }
+               
+        
+		JSB_PRECONDITION2(ok, cx, false, "js_cocos2dx_CatmullRom_initWithDuration : Error processing arguments");
+		bool ret = cobj->initWithDuration(arg0, arg1);
+        delete [] arr;
+		jsval jsret = JSVAL_NULL;
+		jsret = BOOLEAN_TO_JSVAL(ret);
+		JS_SET_RVAL(cx, vp, jsret);
+		return true;
+	}
+
+	JS_ReportError(cx, "js_cocos2dx_CatmullRom_initWithDuration : wrong number of arguments: %d, was expecting %d", argc, 2);
+	return false;
+}
+
 
 bool JSB_CCBezierBy_actionWithDuration(JSContext *cx, uint32_t argc, jsval *vp) {
     return js_BezierActions_create<cocos2d::BezierBy>(cx, argc, vp);
@@ -2852,6 +3002,15 @@ bool JSB_CCBezierTo_actionWithDuration(JSContext *cx, uint32_t argc, jsval *vp) 
 	return js_BezierActions_create<cocos2d::BezierTo>(cx, argc, vp);
 }
 
+bool JSB_CCBezierBy_initWithDuration(JSContext *cx, uint32_t argc, jsval *vp)
+{
+    return js_BezierActions_initWithDuration<cocos2d::BezierBy>(cx, argc, vp);
+}
+
+bool JSB_CCBezierTo_initWithDuration(JSContext *cx, uint32_t argc, jsval *vp)
+{
+    return js_BezierActions_initWithDuration<cocos2d::BezierTo>(cx, argc, vp);
+}
 
 bool JSB_CCCardinalSplineBy_actionWithDuration(JSContext *cx, uint32_t argc, jsval *vp) {
     return js_CardinalSplineActions_create<cocos2d::CardinalSplineBy>(cx, argc, vp);
@@ -2861,12 +3020,57 @@ bool JSB_CCCardinalSplineTo_actionWithDuration(JSContext *cx, uint32_t argc, jsv
     return js_CardinalSplineActions_create<cocos2d::CardinalSplineTo>(cx, argc, vp);
 }
 
+bool js_cocos2dx_CardinalSplineTo_initWithDuration(JSContext *cx, uint32_t argc, jsval *vp)
+{
+	jsval *argv = JS_ARGV(cx, vp);
+	bool ok = true;
+	JSObject *obj = JS_THIS_OBJECT(cx, vp);
+	js_proxy_t *proxy = jsb_get_js_proxy(obj);
+	cocos2d::CardinalSplineTo* cobj = (cocos2d::CardinalSplineTo *)(proxy ? proxy->ptr : NULL);
+	JSB_PRECONDITION2( cobj, cx, false, "js_cocos2dx_CardinalSplineTo_initWithDuration : Invalid Native Object");
+	if (argc == 3) {
+		double arg0;
+		
+		double arg2;
+		ok &= JS::ToNumber( cx, JS::RootedValue(cx, argv[0]), &arg0);
+		
+        int num;
+        Point *arr;
+        ok &= jsval_to_ccarray_of_CCPoint(cx, argv[1], &arr, &num);
+        cocos2d::PointArray* arg1 = PointArray::create(num);
+        for( int i=0; i < num;i++) {
+            arg1->addControlPoint(arr[i]);
+        }
+
+		ok &= JS::ToNumber( cx, JS::RootedValue(cx, argv[2]), &arg2);
+		JSB_PRECONDITION2(ok, cx, false, "js_cocos2dx_CardinalSplineTo_initWithDuration : Error processing arguments");
+		bool ret = cobj->initWithDuration(arg0, arg1, arg2);
+        
+        delete [] arr;
+		jsval jsret = JSVAL_NULL;
+		jsret = BOOLEAN_TO_JSVAL(ret);
+		JS_SET_RVAL(cx, vp, jsret);
+		return true;
+	}
+
+	JS_ReportError(cx, "js_cocos2dx_CardinalSplineTo_initWithDuration : wrong number of arguments: %d, was expecting %d", argc, 3);
+	return false;
+}
+
 bool JSB_CCCatmullRomBy_actionWithDuration(JSContext *cx, uint32_t argc, jsval *vp) {
     return js_CatmullRomActions_create<cocos2d::CatmullRomBy>(cx, argc, vp);
 }
 
 bool JSB_CCCatmullRomTo_actionWithDuration(JSContext *cx, uint32_t argc, jsval *vp) {
 	return js_CatmullRomActions_create<cocos2d::CatmullRomTo>(cx, argc, vp);
+}
+
+bool JSB_CatmullRomBy_initWithDuration(JSContext *cx, uint32_t argc, jsval *vp) {
+    return js_CatmullRomActions_initWithDuration<cocos2d::CatmullRomBy>(cx, argc, vp);
+}
+
+bool JSB_CatmullRomTo_initWithDuration(JSContext *cx, uint32_t argc, jsval *vp) {
+    return js_CatmullRomActions_initWithDuration<cocos2d::CatmullRomTo>(cx, argc, vp);
 }
 
 bool js_cocos2dx_ccGLEnableVertexAttribs(JSContext *cx, uint32_t argc, jsval *vp)
@@ -3369,432 +3573,22 @@ bool js_cocos2dx_CCMenu_alignItemsInColumns(JSContext *cx, uint32_t argc, jsval 
     return false;
 }
 
-// FIXME: These are only for v2.x JSB compatibility
-bool js_cocos2dx_CCLayer_setTouchPriority(JSContext *cx, uint32_t argc, jsval *vp)
+bool js_cocos2dx_CCLayer_init(JSContext *cx, uint32_t argc, jsval *vp)
 {
-	return true;
-}
-
-static int executeScriptTouchHandler(Layer* layer, EventTouch::EventCode eventType, Touch* touch, Event* event)
-{
-    TouchScriptData data(eventType, layer, touch, event);
-    ScriptEvent scriptEvent(kTouchEvent, &data);
-    return ScriptEngineManager::getInstance()->getScriptEngine()->sendEvent(&scriptEvent);
- }
-
-static int executeScriptTouchesHandler(Layer* layer, EventTouch::EventCode eventType, const std::vector<Touch*>& touches, Event* event)
-{
-    TouchesScriptData data(eventType, layer, touches, event);
-    ScriptEvent scriptEvent(kTouchesEvent, &data);
-    return ScriptEngineManager::getInstance()->getScriptEngine()->sendEvent(&scriptEvent);
-}
-
-static void setTouchEnabledForLayer(Layer* layer, bool enabled)
-{
-    auto dict = static_cast<__Dictionary*>(layer->getUserObject());
-    if (dict == nullptr)
-    {
-        dict = Dictionary::create();
-        layer->setUserObject(dict);
-    }
+	JSObject *obj = JS_THIS_OBJECT(cx, vp);
+	js_proxy_t *proxy = jsb_get_js_proxy(obj);
+	cocos2d::Layer* cobj = (cocos2d::Layer *)(proxy ? proxy->ptr : NULL);
+	JSB_PRECONDITION2( cobj, cx, false, "js_cocos2dx_CCLayer_init : Invalid Native Object");
+	if (argc == 0) {
+		bool ret = cobj->init();
+		jsval jsret = JSVAL_NULL;
+		jsret = BOOLEAN_TO_JSVAL(ret);
+		JS_SET_RVAL(cx, vp, jsret);
+		return true;
+	}
     
-    dict->setObject(Bool::create(enabled), "touchEnabled");
-    
-    auto touchListenerAllAtOnce = static_cast<EventListenerTouchAllAtOnce*>(dict->objectForKey("touchListenerAllAtOnce"));
-    auto touchListenerOneByOne = static_cast<EventListenerTouchOneByOne*>(dict->objectForKey("touchListenerOneByOne"));
-    auto touchMode = static_cast<__Integer*>(dict->objectForKey("touchMode"));
-    auto swallowTouches = static_cast<__Bool*>(dict->objectForKey("swallowTouches"));
-    
-    auto dispatcher = layer->getEventDispatcher();
-    if (touchListenerAllAtOnce != nullptr || touchListenerOneByOne != nullptr)
-    {
-        dispatcher->removeEventListener(touchListenerAllAtOnce);
-        dispatcher->removeEventListener(touchListenerOneByOne);
-        dict->removeObjectForKey("touchListenerAllAtOnce");
-        dict->removeObjectForKey("touchListenerOneByOne");
-        touchListenerAllAtOnce = nullptr;
-        touchListenerOneByOne = nullptr;
-    }
-    
-    if (enabled)
-    {
-        if (touchMode == nullptr || touchMode->getValue() == (int)Touch::DispatchMode::ALL_AT_ONCE)
-        {
-            auto listener = EventListenerTouchAllAtOnce::create();
-            listener->onTouchesBegan = [layer](const std::vector<Touch*>& touches, Event* event){
-                executeScriptTouchesHandler(layer, EventTouch::EventCode::BEGAN, touches, event);
-            };
-            listener->onTouchesMoved = [layer](const std::vector<Touch*>& touches, Event* event){
-                executeScriptTouchesHandler(layer, EventTouch::EventCode::MOVED, touches, event);
-            };
-            listener->onTouchesEnded = [layer](const std::vector<Touch*>& touches, Event* event){
-                executeScriptTouchesHandler(layer, EventTouch::EventCode::ENDED, touches, event);
-            };
-            listener->onTouchesCancelled = [layer](const std::vector<Touch*>& touches, Event* event){
-                executeScriptTouchesHandler(layer, EventTouch::EventCode::CANCELLED, touches, event);
-            };
-            
-            dispatcher->addEventListenerWithSceneGraphPriority(listener, layer);
-            
-            dict->setObject(listener, "touchListenerAllAtOnce");
-        }
-        else
-        {
-            auto listener = EventListenerTouchOneByOne::create();
-            listener->setSwallowTouches(swallowTouches ? swallowTouches->getValue() : false);
-            listener->onTouchBegan = [layer](Touch* touch, Event* event) -> bool{
-                return executeScriptTouchHandler(layer, EventTouch::EventCode::BEGAN, touch, event) == 0 ? false : true;
-            };
-            listener->onTouchMoved = [layer](Touch* touch, Event* event){
-                executeScriptTouchHandler(layer, EventTouch::EventCode::MOVED, touch, event);
-            };
-            listener->onTouchEnded = [layer](Touch* touch, Event* event){
-                executeScriptTouchHandler(layer, EventTouch::EventCode::ENDED, touch, event);
-            };
-            listener->onTouchCancelled = [layer](Touch* touch, Event* event){
-                executeScriptTouchHandler(layer, EventTouch::EventCode::CANCELLED, touch, event);
-            };
-            
-            dispatcher->addEventListenerWithSceneGraphPriority(listener, layer);
-            
-            dict->setObject(listener, "touchListenerOneByOne");
-        }
-    }
-}
-
-bool js_cocos2dx_CCLayer_setTouchEnabled(JSContext *cx, uint32_t argc, jsval *vp)
-{
-    JSObject* obj = (JSObject *)JS_THIS_OBJECT(cx, vp);
-    js_proxy_t *proxy = jsb_get_js_proxy(obj);
-    Layer* cobj = (Layer*)(proxy ? proxy->ptr : NULL);
-    TEST_NATIVE_OBJECT(cx, cobj)
-    
-    if (argc == 1)
-    {
-        jsval* argv = JS_ARGV(cx, vp);
-        bool enabled = JSVAL_TO_BOOLEAN(argv[0]);
-        
-        setTouchEnabledForLayer(cobj, enabled);
-        
-        JS_SET_RVAL(cx, vp, JSVAL_VOID);
-        return true;
-    }
-    JS_ReportError(cx, "wrong number of arguments: %d, was expecting %d", argc, 1);
-    return false;
-}
-
-bool js_cocos2dx_CCLayer_isTouchEnabled(JSContext *cx, uint32_t argc, jsval *vp)
-{
-    JSObject* obj = (JSObject *)JS_THIS_OBJECT(cx, vp);
-    js_proxy_t *proxy = jsb_get_js_proxy(obj);
-    Layer* cobj = (Layer*)(proxy ? proxy->ptr : NULL);
-    TEST_NATIVE_OBJECT(cx, cobj)
-    
-    if (argc == 0)
-    {
-        bool ret = false;
-        auto dict = static_cast<__Dictionary*>(cobj->getUserObject());
-        if (dict != nullptr)
-        {
-            __Bool* enabled = static_cast<__Bool*>(dict->objectForKey("touchEnabled"));
-            ret = enabled ? enabled->getValue() : false;
-        }
-        JS_SET_RVAL(cx, vp, BOOLEAN_TO_JSVAL(ret));
-        return true;
-    }
-    JS_ReportError(cx, "wrong number of arguments: %d, was expecting %d", argc, 0);
-    return false;
-}
-
-bool js_cocos2dx_CCLayer_setTouchMode(JSContext *cx, uint32_t argc, jsval *vp)
-{
-    JSObject* obj = (JSObject *)JS_THIS_OBJECT(cx, vp);
-    js_proxy_t *proxy = jsb_get_js_proxy(obj);
-    Layer* cobj = (Layer*)(proxy ? proxy->ptr : NULL);
-    TEST_NATIVE_OBJECT(cx, cobj)
-    
-    if (argc == 1)
-    {
-        jsval* argv = JS_ARGV(cx, vp);
-        int32_t mode = 0;
-        jsval_to_int32(cx, argv[0], &mode);
-        __Integer* touchModeObj = nullptr;
-        
-        auto dict = static_cast<__Dictionary*>(cobj->getUserObject());
-        if (dict == nullptr)
-        {
-            dict = Dictionary::create();
-            cobj->setUserObject(dict);
-        }
-        
-        touchModeObj = static_cast<__Integer*>(dict->objectForKey("touchMode"));
-        int32_t touchMode = touchModeObj ? touchModeObj->getValue() : 0;
-        
-        if (touchMode != mode)
-        {
-            dict->setObject(Integer::create(mode), "touchMode");
-            __Bool* enabled = static_cast<__Bool*>(dict->objectForKey("touchEnabled"));
-            if (enabled && enabled->getValue())
-            {
-                setTouchEnabledForLayer(cobj, false);
-                setTouchEnabledForLayer(cobj, true);
-            }
-        }
-        JS_SET_RVAL(cx, vp, JSVAL_VOID);
-        return true;
-    }
-    JS_ReportError(cx, "wrong number of arguments: %d, was expecting %d", argc, 1);
-    return false;
-}
-
-bool js_cocos2dx_CCLayer_getTouchMode(JSContext *cx, uint32_t argc, jsval *vp)
-{
-    JSObject* obj = (JSObject *)JS_THIS_OBJECT(cx, vp);
-    js_proxy_t *proxy = jsb_get_js_proxy(obj);
-    Layer* cobj = (Layer*)(proxy ? proxy->ptr : NULL);
-    TEST_NATIVE_OBJECT(cx, cobj)
-    
-    if (argc == 0)
-    {
-        int32_t ret = 0;
-        auto dict = static_cast<__Dictionary*>(cobj->getUserObject());
-        if (dict != nullptr)
-        {
-            __Integer* mode = static_cast<__Integer*>(dict->objectForKey("touchMode"));
-            ret = mode ? mode->getValue() : 0;
-        }
-        JS_SET_RVAL(cx, vp, INT_TO_JSVAL(ret));
-        return true;
-    }
-    JS_ReportError(cx, "wrong number of arguments: %d, was expecting %d", argc, 0);
-    return false;
-}
-
-bool js_cocos2dx_CCLayer_setSwallowsTouches(JSContext *cx, uint32_t argc, jsval *vp)
-{
-    JSObject* obj = (JSObject *)JS_THIS_OBJECT(cx, vp);
-    js_proxy_t *proxy = jsb_get_js_proxy(obj);
-    Layer* cobj = (Layer*)(proxy ? proxy->ptr : NULL);
-    TEST_NATIVE_OBJECT(cx, cobj)
-    
-    if (argc == 1)
-    {
-        jsval* argv = JS_ARGV(cx, vp);
-        bool swallowsTouches = JSVAL_TO_BOOLEAN(argv[0]);
-        __Bool* swallowsTouchesObj = nullptr;
-        
-        auto dict = static_cast<__Dictionary*>(cobj->getUserObject());
-        if (dict == nullptr)
-        {
-            dict = Dictionary::create();
-            cobj->setUserObject(dict);
-        }
-        
-        swallowsTouchesObj = static_cast<__Bool*>(dict->objectForKey("swallowTouches"));
-        bool oldSwallowsTouches = swallowsTouchesObj ? swallowsTouchesObj->getValue() : false;
-        
-        if (oldSwallowsTouches != swallowsTouches)
-        {
-            dict->setObject(Integer::create(swallowsTouches), "swallowTouches");
-            __Bool* enabled = static_cast<__Bool*>(dict->objectForKey("touchEnabled"));
-            if (enabled && enabled->getValue())
-            {
-                setTouchEnabledForLayer(cobj, false);
-                setTouchEnabledForLayer(cobj, true);
-            }
-        }
-        JS_SET_RVAL(cx, vp, JSVAL_VOID);
-        return true;
-    }
-    JS_ReportError(cx, "wrong number of arguments: %d, was expecting %d", argc, 1);
-    return false;
-}
-
-bool js_cocos2dx_CCLayer_isSwallowsTouches(JSContext *cx, uint32_t argc, jsval *vp)
-{
-    JSObject* obj = (JSObject *)JS_THIS_OBJECT(cx, vp);
-    js_proxy_t *proxy = jsb_get_js_proxy(obj);
-    Layer* cobj = (Layer*)(proxy ? proxy->ptr : NULL);
-    TEST_NATIVE_OBJECT(cx, cobj)
-    
-    if (argc == 0)
-    {
-        bool ret = false;
-        auto dict = static_cast<__Dictionary*>(cobj->getUserObject());
-        if (dict != nullptr)
-        {
-            __Bool* swallowTouches = static_cast<__Bool*>(dict->objectForKey("swallowTouches"));
-            ret = swallowTouches ? swallowTouches->getValue() : false;
-        }
-        JS_SET_RVAL(cx, vp, BOOLEAN_TO_JSVAL(ret));
-        return true;
-    }
-    JS_ReportError(cx, "wrong number of arguments: %d, was expecting %d", argc, 0);
-    return false;
-}
-
-bool js_cocos2dx_CCLayer_setKeyboardEnabled(JSContext *cx, uint32_t argc, jsval *vp)
-{
-    JSObject* obj = (JSObject *)JS_THIS_OBJECT(cx, vp);
-    js_proxy_t *proxy = jsb_get_js_proxy(obj);
-    Layer* cobj = (Layer*)(proxy ? proxy->ptr : NULL);
-    TEST_NATIVE_OBJECT(cx, cobj)
-    
-    if (argc == 1)
-    {
-        jsval* argv = JS_ARGV(cx, vp);
-        bool enabled = JSVAL_TO_BOOLEAN(argv[0]);
-        auto dict = static_cast<__Dictionary*>(cobj->getUserObject());
-        if (dict == nullptr)
-        {
-            dict = Dictionary::create();
-            cobj->setUserObject(dict);
-        }
-        
-        dict->setObject(Bool::create(enabled), "keyboardEnabled");
-        
-        auto keyboardListener = static_cast<EventListenerKeyboard*>(dict->objectForKey("keyboardListener"));
-        
-        auto dispatcher = cobj->getEventDispatcher();
-        dispatcher->removeEventListener(keyboardListener);
-        
-        if (enabled)
-        {
-            auto listener = EventListenerKeyboard::create();
-            listener->onKeyPressed = [cobj](EventKeyboard::KeyCode keyCode, Event* event){
-            
-            };
-            listener->onKeyReleased = [cobj](EventKeyboard::KeyCode keyCode, Event* event){
-                KeypadScriptData data(keyCode, cobj);
-                ScriptEvent scriptEvent(kKeypadEvent,&data);
-                ScriptEngineManager::getInstance()->getScriptEngine()->sendEvent(&scriptEvent);
-            };
-            
-            dispatcher->addEventListenerWithSceneGraphPriority(listener, cobj);
-            
-            dict->setObject(listener, "keyboardListener");
-        }
-        
-        JS_SET_RVAL(cx, vp, JSVAL_VOID);
-        return true;
-    }
-    JS_ReportError(cx, "wrong number of arguments: %d, was expecting %d", argc, 1);
-    return false;
-}
-
-bool js_cocos2dx_CCLayer_isKeyboardEnabled(JSContext *cx, uint32_t argc, jsval *vp)
-{
-    JSObject* obj = (JSObject *)JS_THIS_OBJECT(cx, vp);
-    js_proxy_t *proxy = jsb_get_js_proxy(obj);
-    Layer* cobj = (Layer*)(proxy ? proxy->ptr : NULL);
-    TEST_NATIVE_OBJECT(cx, cobj)
-    
-    if (argc == 0)
-    {
-        bool ret = false;
-        auto dict = static_cast<__Dictionary*>(cobj->getUserObject());
-        if (dict != nullptr)
-        {
-            __Bool* enabled = static_cast<__Bool*>(dict->objectForKey("keyboardEnabled"));
-            ret = enabled ? enabled->getValue() : false;
-        }
-        JS_SET_RVAL(cx, vp, BOOLEAN_TO_JSVAL(ret));
-        return true;
-    }
-    JS_ReportError(cx, "wrong number of arguments: %d, was expecting %d", argc, 0);
-    return false;
-}
-
-bool js_cocos2dx_CCLayer_setAccelerometerEnabled(JSContext *cx, uint32_t argc, jsval *vp)
-{
-    JSObject* obj = (JSObject *)JS_THIS_OBJECT(cx, vp);
-    js_proxy_t *proxy = jsb_get_js_proxy(obj);
-    Layer* cobj = (Layer*)(proxy ? proxy->ptr : NULL);
-    TEST_NATIVE_OBJECT(cx, cobj)
-    
-    if (argc == 1)
-    {
-        jsval* argv = JS_ARGV(cx, vp);
-        bool enabled = JSVAL_TO_BOOLEAN(argv[0]);
-        auto dict = static_cast<__Dictionary*>(cobj->getUserObject());
-        if (dict == nullptr)
-        {
-            dict = Dictionary::create();
-            cobj->setUserObject(dict);
-        }
-        
-        dict->setObject(Bool::create(enabled), "accelerometerEnabled");
-        
-        auto accListener = static_cast<EventListenerAcceleration*>(dict->objectForKey("accListener"));
-        
-        auto dispatcher = cobj->getEventDispatcher();
-        dispatcher->removeEventListener(accListener);
-        
-        Device::setAccelerometerEnabled(enabled);
-        
-        if (enabled)
-        {
-            auto listener = EventListenerAcceleration::create([cobj](Acceleration* acc, Event* event){
-                BasicScriptData data(cobj,(void*)acc);
-                ScriptEvent accEvent(kAccelerometerEvent,&data);
-                ScriptEngineManager::getInstance()->getScriptEngine()->sendEvent(&accEvent);
-            });
-            
-            dispatcher->addEventListenerWithSceneGraphPriority(listener, cobj);
-            
-            dict->setObject(listener, "accListener");
-        }
-        
-        JS_SET_RVAL(cx, vp, JSVAL_VOID);
-        return true;
-    }
-    JS_ReportError(cx, "wrong number of arguments: %d, was expecting %d", argc, 1);
-    return false;
-}
-
-bool js_cocos2dx_CCLayer_isAccelerometerEnabled(JSContext *cx, uint32_t argc, jsval *vp)
-{
-    JSObject* obj = (JSObject *)JS_THIS_OBJECT(cx, vp);
-    js_proxy_t *proxy = jsb_get_js_proxy(obj);
-    Layer* cobj = (Layer*)(proxy ? proxy->ptr : NULL);
-    TEST_NATIVE_OBJECT(cx, cobj)
-    
-    if (argc == 0)
-    {
-        bool ret = false;
-        auto dict = static_cast<__Dictionary*>(cobj->getUserObject());
-        if (dict != nullptr)
-        {
-            __Bool* enabled = static_cast<__Bool*>(dict->objectForKey("accelerometerEnabled"));
-            ret = enabled ? enabled->getValue() : false;
-        }
-        JS_SET_RVAL(cx, vp, BOOLEAN_TO_JSVAL(ret));
-        return true;
-    }
-    JS_ReportError(cx, "wrong number of arguments: %d, was expecting %d", argc, 0);
-    return false;
-}
-
-bool js_cocos2dx_CCLayer_setAccelerometerInterval(JSContext *cx, uint32_t argc, jsval *vp)
-{
-    JSObject* obj = (JSObject *)JS_THIS_OBJECT(cx, vp);
-    js_proxy_t *proxy = jsb_get_js_proxy(obj);
-    Layer* cobj = (Layer*)(proxy ? proxy->ptr : NULL);
-    TEST_NATIVE_OBJECT(cx, cobj)
-    
-    if (argc == 1)
-    {
-        jsval* argv = JS_ARGV(cx, vp);
-        double interval = 0.0;
-        JS::ToNumber(cx, JS::RootedValue(cx, argv[0]), &interval);
-        
-        Device::setAccelerometerInterval(interval);
-        
-        JS_SET_RVAL(cx, vp, JSVAL_VOID);
-        return true;
-    }
-    JS_ReportError(cx, "wrong number of arguments: %d, was expecting %d", argc, 1);
-    return false;
+	JS_ReportError(cx, "js_cocos2dx_CCLayer_init : wrong number of arguments: %d, was expecting %d", argc, 0);
+	return false;
 }
 
 
@@ -3918,7 +3712,7 @@ static jsval string_vector_to_jsval(JSContext* cx, const std::vector<std::string
     
     int i = 0;
     for(std::vector<std::string>::const_iterator iter = arr.begin(); iter != arr.end(); ++iter, ++i) {
-        JS::RootedValue arrElement(cx, c_string_to_jsval(cx, iter->c_str()));
+        JS::RootedValue arrElement(cx, std_string_to_jsval(cx, *iter));
         if(!JS_SetElement(cx, jsretArr, i, &arrElement)) {
             break;
         }
@@ -4552,21 +4346,41 @@ bool js_cocos2dx_Label_setTTFConfig(JSContext *cx, uint32_t argc, jsval *vp)
     return false;
 }
 
+// console.log("Message");
+bool js_console_log(JSContext *cx, uint32_t argc, jsval *vp)
+{
+    jsval *argv = JS_ARGV(cx, vp);
+    if (argc == 1) {
+        std::string msg;
+        bool ok = jsval_to_std_string(cx, argv[0], &msg);
+        JSB_PRECONDITION2(ok, cx, false, "js_console_log : Error processing arguments");
+        
+        log("%s", msg.c_str());
+        JS_SET_RVAL(cx, vp, JSVAL_VOID);
+        return true;
+    }
+    
+    JS_ReportError(cx, "js_console_log : wrong number of arguments");
+    return false;
+}
+
+void create_js_root_obj(JSContext* cx, JSObject* global, const std::string &name, JS::RootedObject *jsObj)
+{
+    JS::RootedValue nsval(cx);
+	JS_GetProperty(cx, global, name.c_str(), &nsval);
+	if (nsval == JSVAL_VOID) {
+		*jsObj = JS_NewObject(cx, NULL, NULL, NULL);
+		nsval = OBJECT_TO_JSVAL(*jsObj);
+		JS_SetProperty(cx, global, name.c_str(), nsval);
+	} else {
+		JS_ValueToObject(cx, nsval, jsObj);
+	}
+}
+
 void register_cocos2dx_js_extensions(JSContext* cx, JSObject* global)
 {
-	// first, try to get the ns
-    JS::RootedValue nsval(cx);
-    JS::RootedObject ns(cx);
-	JS_GetProperty(cx, global, "cc", &nsval);
-	if (nsval == JSVAL_VOID) {
-		ns = JS_NewObject(cx, NULL, NULL, NULL);
-		nsval = OBJECT_TO_JSVAL(ns);
-		JS_SetProperty(cx, global, "cc", nsval);
-	} else {
-		JS_ValueToObject(cx, nsval, &ns);
-	}
-
-	JS_DefineFunction(cx, global, "__getPlatform", js_platform, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS::RootedObject ccObj(cx);
+	create_js_root_obj(cx, global, "cc", &ccObj);
 
 	JSObject *tmpObj;
     JS_DefineFunction(cx, jsb_cocos2d_Label_prototype, "createWithTTF", js_cocos2dx_Label_createWithTTF, 4, JSPROP_ENUMERATE | JSPROP_PERMANENT);
@@ -4579,6 +4393,9 @@ void register_cocos2dx_js_extensions(JSContext* cx, JSObject* global)
     
     JS_DefineFunction(cx, jsb_cocos2d_EventListener_prototype, "retain", js_cocos2dx_retain, 0, JSPROP_ENUMERATE | JSPROP_PERMANENT);
 	JS_DefineFunction(cx, jsb_cocos2d_EventListener_prototype, "release", js_cocos2dx_release, 0, JSPROP_ENUMERATE | JSPROP_PERMANENT);
+    
+    JS_DefineFunction(cx, jsb_cocos2d_EventTouch_prototype, "getTouches", js_cocos2dx_EventTouch_getTouches, 0, JSPROP_ENUMERATE | JSPROP_PERMANENT);
+	JS_DefineFunction(cx, jsb_cocos2d_EventTouch_prototype, "setTouches", js_cocos2dx_EventTouch_setTouches, 0, JSPROP_ENUMERATE | JSPROP_PERMANENT);
     
     JS_DefineFunction(cx, jsb_cocos2d_GLProgram_prototype, "retain", js_cocos2dx_retain, 0, JSPROP_ENUMERATE | JSPROP_PERMANENT);
 	JS_DefineFunction(cx, jsb_cocos2d_GLProgram_prototype, "release", js_cocos2dx_release, 0, JSPROP_ENUMERATE | JSPROP_PERMANENT);
@@ -4624,18 +4441,7 @@ void register_cocos2dx_js_extensions(JSContext* cx, JSObject* global)
     JS_DefineFunction(cx, jsb_cocos2d_Menu_prototype, "alignItemsInRows", js_cocos2dx_CCMenu_alignItemsInRows, 1, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
     JS_DefineFunction(cx, jsb_cocos2d_Menu_prototype, "alignItemsInColumns", js_cocos2dx_CCMenu_alignItemsInColumns, 1, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
 
-	JS_DefineFunction(cx, jsb_cocos2d_Layer_prototype, "setTouchPriority", js_cocos2dx_CCLayer_setTouchPriority, 1, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_Layer_prototype, "setTouchEnabled", js_cocos2dx_CCLayer_setTouchEnabled, 1, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_Layer_prototype, "isTouchEnabled", js_cocos2dx_CCLayer_isTouchEnabled, 0, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_Layer_prototype, "setKeyboardEnabled", js_cocos2dx_CCLayer_setKeyboardEnabled, 1, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_Layer_prototype, "isKeyboardEnabled", js_cocos2dx_CCLayer_isKeyboardEnabled, 0, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_Layer_prototype, "setTouchMode", js_cocos2dx_CCLayer_setTouchMode, 1, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_Layer_prototype, "getTouchMode", js_cocos2dx_CCLayer_getTouchMode, 0, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_Layer_prototype, "setSwallowsTouches", js_cocos2dx_CCLayer_setSwallowsTouches, 1, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_Layer_prototype, "isSwallowsTouches", js_cocos2dx_CCLayer_isSwallowsTouches, 0, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_Layer_prototype, "setAccelerometerEnabled", js_cocos2dx_CCLayer_setAccelerometerEnabled, 1, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_Layer_prototype, "isAccelerometerEnabled", js_cocos2dx_CCLayer_isAccelerometerEnabled, 0, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_Layer_prototype, "setAccelerometerInterval", js_cocos2dx_CCLayer_setAccelerometerInterval, 1, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
+	JS_DefineFunction(cx, jsb_cocos2d_Layer_prototype, "init", js_cocos2dx_CCLayer_init, 0, JSPROP_ENUMERATE  | JSPROP_PERMANENT);
 
     JS_DefineFunction(cx, jsb_cocos2d_FileUtils_prototype, "setSearchResolutionsOrder", js_cocos2dx_CCFileUtils_setSearchResolutionsOrder, 1, JSPROP_PERMANENT );
     JS_DefineFunction(cx, jsb_cocos2d_FileUtils_prototype, "setSearchPaths", js_cocos2dx_CCFileUtils_setSearchPaths, 1, JSPROP_PERMANENT );
@@ -4652,27 +4458,35 @@ void register_cocos2dx_js_extensions(JSContext* cx, JSObject* global)
     tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.EventListenerTouchAllAtOnce; })()"));
     JS_DefineFunction(cx, tmpObj, "create", js_EventListenerTouchAllAtOnce_create, 0, JSPROP_READONLY | JSPROP_PERMANENT);
     
+    tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.EventListenerMouse; })()"));
+    JS_DefineFunction(cx, tmpObj, "create", js_EventListenerMouse_create, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    
     tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.EventListenerKeyboard; })()"));
     JS_DefineFunction(cx, tmpObj, "create", js_EventListenerKeyboard_create, 0, JSPROP_READONLY | JSPROP_PERMANENT);
     
     tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.BezierBy; })()"));
     JS_DefineFunction(cx, tmpObj, "create", JSB_CCBezierBy_actionWithDuration, 2, JSPROP_READONLY | JSPROP_PERMANENT);
-    
+    JS_DefineFunction(cx, jsb_cocos2d_BezierBy_prototype, "initWithDuration", JSB_CCBezierBy_initWithDuration, 2, JSPROP_ENUMERATE | JSPROP_PERMANENT);
+
     tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.BezierTo; })()"));
     JS_DefineFunction(cx, tmpObj, "create", JSB_CCBezierTo_actionWithDuration, 2, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, jsb_cocos2d_BezierTo_prototype, "initWithDuration", JSB_CCBezierTo_initWithDuration, 2, JSPROP_ENUMERATE | JSPROP_PERMANENT);
     
     tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.CardinalSplineBy; })()"));
     JS_DefineFunction(cx, tmpObj, "create", JSB_CCCardinalSplineBy_actionWithDuration, 2, JSPROP_READONLY | JSPROP_PERMANENT);
     
     tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.CardinalSplineTo; })()"));
     JS_DefineFunction(cx, tmpObj, "create", JSB_CCCardinalSplineTo_actionWithDuration, 2, JSPROP_READONLY | JSPROP_PERMANENT);
-    
+    JS_DefineFunction(cx, jsb_cocos2d_CardinalSplineTo_prototype, "initWithDuration", js_cocos2dx_CardinalSplineTo_initWithDuration, 3, JSPROP_ENUMERATE | JSPROP_PERMANENT);
+
     tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.CatmullRomBy; })()"));
     JS_DefineFunction(cx, tmpObj, "create", JSB_CCCatmullRomBy_actionWithDuration, 2, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, jsb_cocos2d_CatmullRomBy_prototype, "initWithDuration", JSB_CatmullRomBy_initWithDuration, 2, JSPROP_ENUMERATE | JSPROP_PERMANENT);    
     
     tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.CatmullRomTo; })()"));
     JS_DefineFunction(cx, tmpObj, "create", JSB_CCCatmullRomTo_actionWithDuration, 2, JSPROP_READONLY | JSPROP_PERMANENT);
-    
+    JS_DefineFunction(cx, jsb_cocos2d_CatmullRomTo_prototype, "initWithDuration", JSB_CatmullRomBy_initWithDuration, 2, JSPROP_ENUMERATE | JSPROP_PERMANENT);
+
     JS_DefineFunction(cx, jsb_cocos2d_Sprite_prototype, "textureLoaded", js_cocos2dx_CCSprite_textureLoaded, 0, JSPROP_ENUMERATE | JSPROP_PERMANENT);
 	JS_DefineFunction(cx, jsb_cocos2d_SpriteBatchNode_prototype, "getDescendants", js_cocos2dx_SpriteBatchNode_getDescendants, 0, JSPROP_ENUMERATE | JSPROP_PERMANENT);
     
@@ -4686,19 +4500,17 @@ void register_cocos2dx_js_extensions(JSContext* cx, JSObject* global)
     JS_DefineFunction(cx, jsb_cocos2d_TMXLayer_prototype, "getTileFlagsAt", js_cocos2dx_CCTMXLayer_tileFlagsAt, 2, JSPROP_ENUMERATE | JSPROP_PERMANENT);
     JS_DefineFunction(cx, jsb_cocos2d_TMXLayer_prototype, "getTiles", js_cocos2dx_CCTMXLayer_getTiles, 0, JSPROP_ENUMERATE | JSPROP_PERMANENT);
     
-    JS_DefineFunction(cx, jsb_cocos2d_ActionInterval_prototype, "repeat", js_cocos2dx_ActionInterval_repeat, 0, JSPROP_ENUMERATE | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, jsb_cocos2d_ActionInterval_prototype, "repeat", js_cocos2dx_ActionInterval_repeat, 1, JSPROP_ENUMERATE | JSPROP_PERMANENT);
     JS_DefineFunction(cx, jsb_cocos2d_ActionInterval_prototype, "repeatForever", js_cocos2dx_ActionInterval_repeatForever, 0, JSPROP_ENUMERATE | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_ActionInterval_prototype, "speed", js_cocos2dx_ActionInterval_speed, 0, JSPROP_ENUMERATE | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, jsb_cocos2d_ActionInterval_prototype, "_speed", js_cocos2dx_ActionInterval_speed, 1, JSPROP_ENUMERATE | JSPROP_PERMANENT);
     JS_DefineFunction(cx, jsb_cocos2d_ActionInterval_prototype, "easing", js_cocos2dx_ActionInterval_easing, 0, JSPROP_ENUMERATE | JSPROP_PERMANENT);
     
 	tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.Menu; })()"));
-	JS_DefineFunction(cx, tmpObj, "create", js_cocos2dx_CCMenu_create, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+	JS_DefineFunction(cx, tmpObj, "_create", js_cocos2dx_CCMenu_create, 0, JSPROP_READONLY | JSPROP_PERMANENT);
 	tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.MenuItem; })()"));
 	JS_DefineFunction(cx, tmpObj, "create", js_cocos2dx_CCMenuItem_create, 1, JSPROP_READONLY | JSPROP_PERMANENT);
 	tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.MenuItemSprite; })()"));
 	JS_DefineFunction(cx, tmpObj, "create", js_cocos2dx_CCMenuItemSprite_create, 1, JSPROP_READONLY | JSPROP_PERMANENT);
-	tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.MenuItemImage; })()"));
-	JS_DefineFunction(cx, tmpObj, "create", js_cocos2dx_CCMenuItemImage_create, 1, JSPROP_READONLY | JSPROP_PERMANENT);
 	tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.MenuItemLabel; })()"));
 	JS_DefineFunction(cx, tmpObj, "create", js_cocos2dx_CCMenuItemLabel_create, 1, JSPROP_READONLY | JSPROP_PERMANENT);
 	tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.MenuItemAtlasFont; })()"));
@@ -4713,17 +4525,17 @@ void register_cocos2dx_js_extensions(JSContext* cx, JSObject* global)
 	JS_DefineFunction(cx, tmpObj, "create", js_cocos2dx_CCSpawn_create, 0, JSPROP_READONLY | JSPROP_PERMANENT);
 	//tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.Animation; })()"));
 	//JS_DefineFunction(cx, tmpObj, "create", js_cocos2dx_CCAnimation_create, 0, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_Scene_prototype, "init", js_cocos2dx_CCScene_init, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, jsb_cocos2d_Scene_prototype, "init", js_cocos2dx_CCScene_init, 0, JSPROP_PERMANENT | JSPROP_ENUMERATE);
     tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.LayerMultiplex; })()"));
     JS_DefineFunction(cx, tmpObj, "create", js_cocos2dx_CCLayerMultiplex_create, 0, JSPROP_READONLY | JSPROP_PERMANENT);
     
-	JS_DefineFunction(cx, ns, "registerTargetedDelegate", js_cocos2dx_JSTouchDelegate_registerTargetedDelegate, 1, JSPROP_READONLY | JSPROP_PERMANENT);
-	JS_DefineFunction(cx, ns, "registerStandardDelegate", js_cocos2dx_JSTouchDelegate_registerStandardDelegate, 1, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "unregisterTouchDelegate", js_cocos2dx_JSTouchDelegate_unregisterTouchDelegate, 1, JSPROP_READONLY | JSPROP_PERMANENT);
+	JS_DefineFunction(cx, ccObj, "registerTargetedDelegate", js_cocos2dx_JSTouchDelegate_registerTargetedDelegate, 1, JSPROP_READONLY | JSPROP_PERMANENT);
+	JS_DefineFunction(cx, ccObj, "registerStandardDelegate", js_cocos2dx_JSTouchDelegate_registerStandardDelegate, 1, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "unregisterTouchDelegate", js_cocos2dx_JSTouchDelegate_unregisterTouchDelegate, 1, JSPROP_READONLY | JSPROP_PERMANENT);
 
 	tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.CallFunc; })()"));
 	JS_DefineFunction(cx, tmpObj, "create", js_callFunc, 1, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, jsb_cocos2d_CallFunc_prototype, "initWithFunction", js_cocos2dx_CallFunc_initWithFunction, 1, JSPROP_ENUMERATE | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, jsb_cocos2d_CallFuncN_prototype, "initWithFunction", js_cocos2dx_CallFunc_initWithFunction, 1, JSPROP_ENUMERATE | JSPROP_PERMANENT);
     
     tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return cc.PlistParser; })()"));
 	JS_DefineFunction(cx, tmpObj, "getInstance", js_PlistParser_getInstance, 0, JSPROP_READONLY | JSPROP_PERMANENT);
@@ -4738,22 +4550,27 @@ void register_cocos2dx_js_extensions(JSContext* cx, JSObject* global)
      tmpObj = JSVAL_TO_OBJECT(anonEvaluate(cx, global, "(function () { return this; })()"));
     JS_DefineFunction(cx, tmpObj, "garbageCollect", js_forceGC, 1, JSPROP_READONLY | JSPROP_PERMANENT);
 
-    JS_DefineFunction(cx, ns, "glEnableVertexAttribs", js_cocos2dx_ccGLEnableVertexAttribs, 1, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pAdd", js_cocos2dx_ccpAdd, 1, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pDistanceSQ", js_cocos2dx_ccpDistanceSQ, 1, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pDistance", js_cocos2dx_ccpDistance, 1, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pSub", js_cocos2dx_ccpSub, 0, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pNeg", js_cocos2dx_ccpNeg, 0, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pMult", js_cocos2dx_ccpMult, 0, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pMidpoint", js_cocos2dx_ccpMidpoint, 0, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pDot", js_cocos2dx_ccpDot, 0, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pCross", js_cocos2dx_ccpCross, 0, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pPerp", js_cocos2dx_ccpPerp, 0, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pRPerp", js_cocos2dx_ccpRPerp, 0, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pProject", js_cocos2dx_ccpProject, 0, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pRotate", js_cocos2dx_ccpRotate, 0, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pNormalize", js_cocos2dx_ccpNormalize, 0, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pClamp", js_cocos2dx_ccpClamp, 2, JSPROP_READONLY | JSPROP_PERMANENT);
-	JS_DefineFunction(cx, ns, "pLengthSQ", js_cocos2dx_ccpLengthSQ, 1, JSPROP_READONLY | JSPROP_PERMANENT);
-    JS_DefineFunction(cx, ns, "pLength", js_cocos2dx_ccpLength, 1, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "glEnableVertexAttribs", js_cocos2dx_ccGLEnableVertexAttribs, 1, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pAdd", js_cocos2dx_ccpAdd, 1, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pDistanceSQ", js_cocos2dx_ccpDistanceSQ, 1, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pDistance", js_cocos2dx_ccpDistance, 1, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pSub", js_cocos2dx_ccpSub, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pNeg", js_cocos2dx_ccpNeg, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pMult", js_cocos2dx_ccpMult, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pMidpoint", js_cocos2dx_ccpMidpoint, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pDot", js_cocos2dx_ccpDot, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pCross", js_cocos2dx_ccpCross, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pPerp", js_cocos2dx_ccpPerp, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pRPerp", js_cocos2dx_ccpRPerp, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pProject", js_cocos2dx_ccpProject, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pRotate", js_cocos2dx_ccpRotate, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pNormalize", js_cocos2dx_ccpNormalize, 0, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pClamp", js_cocos2dx_ccpClamp, 2, JSPROP_READONLY | JSPROP_PERMANENT);
+	JS_DefineFunction(cx, ccObj, "pLengthSQ", js_cocos2dx_ccpLengthSQ, 1, JSPROP_READONLY | JSPROP_PERMANENT);
+    JS_DefineFunction(cx, ccObj, "pLength", js_cocos2dx_ccpLength, 1, JSPROP_READONLY | JSPROP_PERMANENT);
+    
+    JS::RootedObject consoleObj(cx);
+	create_js_root_obj(cx, global, "console", &consoleObj);
+    
+    JS_DefineFunction(cx, consoleObj, "log", js_console_log, 1, JSPROP_READONLY | JSPROP_PERMANENT);
 }
