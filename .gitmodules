@@ -1,0 +1,3 @@
+[submodule "Client/pomelo-cocos2d-jsb"]
+	path = Client/pomelo-cocos2d-jsb
+	url = https://github.com/Netease/pomelo-cocos2d-js.git
