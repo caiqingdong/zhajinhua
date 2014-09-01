@@ -48,6 +48,10 @@ cc._tmp.DirectorWebGL = function () {
 
         _t.setViewport();
 
+        var view = _t._openGLView,
+            ox = view._viewPortRect.x / view._scaleX,
+            oy = view._viewPortRect.y / view._scaleY;
+
         switch (projection) {
             case cc.Director.PROJECTION_2D:
                 cc.kmGLMatrixMode(cc.KM_GL_PROJECTION);
@@ -71,8 +75,8 @@ cc._tmp.DirectorWebGL = function () {
 
                 cc.kmGLMatrixMode(cc.KM_GL_MODELVIEW);
                 cc.kmGLLoadIdentity();
-                var eye = cc.kmVec3Fill(null, size.width / 2, size.height / 2, zeye);
-                var center = cc.kmVec3Fill(null, size.width / 2, size.height / 2, 0.0);
+                var eye = cc.kmVec3Fill(null, -ox + size.width / 2, -oy + size.height / 2, zeye);
+                var center = cc.kmVec3Fill(null, -ox + size.width / 2, -oy + size.height / 2, 0.0);
                 var up = cc.kmVec3Fill(null, 0.0, 1.0, 0.0);
                 cc.kmMat4LookAt(matrixLookup, eye, center, up);
                 cc.kmGLMultMatrix(matrixLookup);
@@ -225,17 +229,6 @@ cc._tmp.DirectorWebGL = function () {
         _t._FPSLabel.setPosition(_t._FPSLabel.width / 2 + locStatsPosition.x, _t._FPSLabel.height / 2 + locStatsPosition.y);
     };
 
-
-    /**
-     * <p>
-     *     converts a UIKit coordinate to an OpenGL coordinate<br/>
-     *     Useful to convert (multi) touches coordinates to the current layout (portrait or landscape)
-     * </p>
-     * @param {cc.Point} uiPoint
-     * @return {cc.Point}
-     *
-     * convertToGL move to CCDirectorWebGL
-     */
     _p.convertToGL = function (uiPoint) {
         var transform = new cc.kmMat4();
         cc.GLToClipTransform(transform);
@@ -255,12 +248,6 @@ cc._tmp.DirectorWebGL = function () {
         return cc.p(glCoord.x, glCoord.y);
     };
 
-    /**
-     * <p>converts an OpenGL coordinate to a UIKit coordinate<br/>
-     * Useful to convert node points to window points for calls such as glScissor</p>
-     * @param {cc.Point} glPoint
-     * @return {cc.Point}
-     */
     _p.convertToUI = function (glPoint) {
         var transform = new cc.kmMat4();
         cc.GLToClipTransform(transform);
@@ -295,36 +282,22 @@ cc._tmp.DirectorWebGL = function () {
         return (this._winSizeInPoints.height / 1.1566 );
     };
 
-    /**
-     * Sets the glViewport
-     */
     _p.setViewport = function () {
-        if (this._openGLView) {
+        var view = this._openGLView;
+        if (view) {
             var locWinSizeInPoints = this._winSizeInPoints;
-            this._openGLView.setViewPortInPoints(0, 0, locWinSizeInPoints.width, locWinSizeInPoints.height);
+            view.setViewPortInPoints(-view._viewPortRect.x/view._scaleX, -view._viewPortRect.y/view._scaleY, locWinSizeInPoints.width, locWinSizeInPoints.height);
         }
     };
 
-    /**
-     *  Get the CCEGLView, where everything is rendered
-     * @return {*}
-     */
     _p.getOpenGLView = function () {
         return this._openGLView;
     };
 
-    /**
-     * Sets an OpenGL projection
-     * @return {Number}
-     */
     _p.getProjection = function () {
         return this._projection;
     };
 
-    /**
-     * enables/disables OpenGL alpha blending
-     * @param {Boolean} on
-     */
     _p.setAlphaBlending = function (on) {
         if (on)
             cc.glBlendFunc(cc.BLEND_SRC, cc.BLEND_DST);
@@ -333,10 +306,6 @@ cc._tmp.DirectorWebGL = function () {
         //cc.checkGLErrorDebug();
     };
 
-
-    /**
-     * sets the OpenGL default values
-     */
     _p.setGLDefaultValues = function () {
         var _t = this;
         _t.setAlphaBlending(true);

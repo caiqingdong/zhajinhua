@@ -17,6 +17,14 @@ app.configure('production|development', 'connector', function(){
     });
 });
 
+
+app.configure('production|development','gate', function() {
+    app.set('connectorConfig', {
+        connector: pomelo.connectors.hybridconnector,
+        useDict: true // enable dict
+    });
+});
+
 // start app
 app.start();
 

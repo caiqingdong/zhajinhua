@@ -37,6 +37,8 @@
 #include <assert.h>
 #include <memory>
 
+#define ENGINE_VERSION "Cocos2d-JS v3.0 RC3"
+
 void js_log(const char *format, ...);
 
 typedef void (*sc_register_sth)(JSContext* cx, JSObject* global);
@@ -144,6 +146,7 @@ public:
      */
     void cleanScript(const char *path);
     
+    std::unordered_map<std::string, JSScript*> &getFileScprite();
      /**
      * will clean all script object
      */
@@ -229,7 +232,7 @@ public:
 	 * enable the debug environment
 	 */
 	void debugProcessInput(const std::string& str);
-	void enableDebugger();
+	void enableDebugger(unsigned int port = 5086);
 	JSObject* getDebugGlobal() { return _debugGlobal; }
     JSObject* getGlobalObject() { return _global; }
 
@@ -245,6 +248,7 @@ public:
     
     bool handleTouchesEvent(void* nativeObj, cocos2d::EventTouch::EventCode eventCode, const std::vector<cocos2d::Touch*>& touches, cocos2d::Event* event, jsval* jsvalRet = nullptr);
     bool handleTouchEvent(void* nativeObj, cocos2d::EventTouch::EventCode eventCode, cocos2d::Touch* touch, cocos2d::Event* event, jsval* jsvalRet = nullptr);
+    bool handleMouseEvent(void* nativeObj, cocos2d::EventMouse::MouseEventType eventType, cocos2d::Event* event, jsval* jsvalRet = nullptr);
     bool handleKeybardEvent(void* nativeObj, cocos2d::EventKeyboard::KeyCode keyCode, bool isPressed, cocos2d::Event* event);
 };
 
