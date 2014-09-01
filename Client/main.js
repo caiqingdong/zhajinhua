@@ -48,6 +48,11 @@
  */
 
 cc.game.onStart = function(){
+	
+	if (cc.sys.isNative === true) {
+		require('pomelo-cocos2d-jsb/index.js');
+	}
+	
     cc.view.adjustViewPort(true);
     cc.view.setDesignResolutionSize(800, 450, cc.ResolutionPolicy.SHOW_ALL);
     cc.view.resizeWithBrowserSize(true);

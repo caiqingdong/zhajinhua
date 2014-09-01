@@ -41,10 +41,10 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="servers.json" pinned="false" current="true" current-in-tab="true">
+      <file leaf-file-name="servers.json" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/game-server/config/servers.json">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="10" column="6" selection-start="528" selection-end="528" vertical-scroll-proportion="0.16411379" vertical-offset="0" max-vertical-offset="914">
+            <state line="6" column="10" selection-start="399" selection-end="399" vertical-scroll-proportion="-3.75" vertical-offset="0" max-vertical-offset="420">
               <folding />
             </state>
           </provider>
@@ -59,10 +59,10 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="gateHandler.js" pinned="false" current="false" current-in-tab="false">
+      <file leaf-file-name="gateHandler.js" pinned="false" current="true" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/game-server/app/servers/gate/handler/gateHandler.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="23" column="15" selection-start="441" selection-end="441" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="570">
+            <state line="17" column="24" selection-start="234" selection-end="234" vertical-scroll-proportion="0.23987207" vertical-offset="0" max-vertical-offset="938">
               <folding>
                 <element signature="e#0#36#0" expanded="false" />
               </folding>
@@ -127,8 +127,8 @@
       <list>
         <option value="$PROJECT_DIR$/game-server/config/servers.json" />
         <option value="$PROJECT_DIR$/game-server/config/adminServer.json" />
-        <option value="$PROJECT_DIR$/game-server/app/servers/gate/handler/gateHandler.js" />
         <option value="$PROJECT_DIR$/game-server/app.js" />
+        <option value="$PROJECT_DIR$/game-server/app/servers/gate/handler/gateHandler.js" />
       </list>
     </option>
   </component>
@@ -395,15 +395,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/game-server/app/servers/gate/handler/gateHandler.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="23" column="15" selection-start="441" selection-end="441" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="570">
-          <folding>
-            <element signature="e#0#36#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/game-server/app.js">
       <provider selected="true" editor-type-id="text-editor">
         <state line="14" column="21" selection-start="344" selection-end="344" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="585">
@@ -420,8 +411,17 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/game-server/config/servers.json">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="10" column="6" selection-start="528" selection-end="528" vertical-scroll-proportion="0.16411379" vertical-offset="0" max-vertical-offset="914">
+        <state line="6" column="10" selection-start="399" selection-end="399" vertical-scroll-proportion="-3.75" vertical-offset="0" max-vertical-offset="420">
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/game-server/app/servers/gate/handler/gateHandler.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="17" column="24" selection-start="234" selection-end="234" vertical-scroll-proportion="0.23987207" vertical-offset="0" max-vertical-offset="938">
+          <folding>
+            <element signature="e#0#36#0" expanded="false" />
+          </folding>
         </state>
       </provider>
     </entry>
