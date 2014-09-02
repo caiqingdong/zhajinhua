@@ -18,7 +18,14 @@ var LoginLayer = cc.Layer.extend({
 		
 		this.addChild(root);
 		
-		this.queryEntry();
+		var salf = this;
+
+		queryEntry(function(data) {
+
+			salf.connectServer(_targetHost, _targetPort);
+			cc.log("host : " + data.host);
+			cc.log("port : " + data.port);
+		});
 		
 		return true;
 	},
@@ -55,30 +62,6 @@ var LoginLayer = cc.Layer.extend({
 		});
 	},
 	
-	
-	//获取一个连接的ip和端口，
-	queryEntry : function() {
-
-		var salf = this;
-		
-		pomelo.init({
-			host: _host,
-			port: _port,
-			log: true
-		}, function() {
-			pomelo.request(routes.gate_queryEntry, {
-			}, function(data) {
-				pomelo.disconnect();
-
-				_targetHost = data.host;
-				_targetPort = data.port;
-				salf.connectServer(_targetHost, _targetPort);
-				cc.log("host : " + data.host);
-				cc.log("port : " + data.port);
-			});
-		});
-	}
-
 });
 
 var LoginScene = cc.Scene.extend({
