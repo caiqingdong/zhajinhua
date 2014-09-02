@@ -1,26 +1,4 @@
 
-// 获取一个连接的ip和端口，
-var queryEntry = function() {
-	var pomelo = window.pomelo;
-
-	var route = 'gate.gateHandler.queryEntry';
-
-	pomelo.init({
-		host: "127.0.0.1",
-		port: 3014,
-		log: true
-	}, function() {
-		pomelo.request(route, {
-		}, function(data) {
-			pomelo.disconnect();
-			
-			cc.log("host : " + data.host);
-			cc.log("port : " + data.port);
-		});
-	});
-}
-
-
 var HelloWorldLayer = cc.Layer.extend({
     sprite:null,
     ctor:function () {
