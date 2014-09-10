@@ -5,4 +5,8 @@ service/web-server/node_modules/
 
 service/game-server/logs/
 
+service/game-server/.idea/
+
 service/.idea/
+
+service/game-server/npm-debug.log
