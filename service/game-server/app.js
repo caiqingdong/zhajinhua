@@ -1,5 +1,7 @@
 var pomelo = require('pomelo');
 
+
+
 /**
  * Init app for client.
  */
@@ -15,6 +17,25 @@ app.configure('production|development', 'connector', function(){
       useDict : true,
       useProtobuf : true
     });
+
+    var dbclient = require("./app/dao/mysql/sqlclient").init();
+
+    app.set("dbclient", dbclient);
+
+    var sql = 'select * from MYTABLE where name=?';
+    var args = ["cqd"];
+
+    dbclient.query(sql, args, function(err, res){
+        if (err) console.log(err);
+        console.log(res);
+    });
+
+    var args = ["test"];
+    dbclient.query(sql, args, function(err, res){
+        if (err) console.log(err);
+        console.log(res);
+    });
+
 });
 
 
