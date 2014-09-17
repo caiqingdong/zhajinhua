@@ -5,25 +5,40 @@
 sqlclient = module.exports;
 
 
-var conn;
+var pool;
 
 sqlclient.init = function () {
     var mysql = require("mysql");
 
-    conn = mysql.createConnection({
-        host: "114.215.156.65",
-        user: "cqd",
-        password: "880924",
-        database: "zjh"
+
+
+    pool  = mysql.createPool({
+        host     : '114.215.156.65',
+        user     : 'cqd',
+        password : '880924',
+        database : 'zjh'
     });
 
-    conn.connect();
+
+//    conn = mysql.createConnection({
+//        host: "114.215.156.65",
+//        user: "cqd",
+//        password: "880924",
+//        database: "zjh"
+//    });
+//
+//    conn.connect();
 
     return sqlclient;
 }
 
 sqlclient.query = function(sql, args, cb){
 
-    conn.query(sql, args, cb);
+    pool.getConnection(function(err, connection) {
+
+        connection.query(sql, args, cb);
+
+        connection.release();
+    });
 
 }
