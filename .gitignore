@@ -10,3 +10,5 @@ service/game-server/.idea/
 service/.idea/
 
 service/game-server/npm-debug.log
+
+.idea/workspace.xml
